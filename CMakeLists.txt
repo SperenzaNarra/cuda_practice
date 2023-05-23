@@ -10,7 +10,6 @@ check_language(CUDA)
 
 # 将源代码添加到此项目的可执行文件。
 add_executable (${PROJECT_NAME} cuda_practice.cu)
-add_executable (test test.cu)
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET cuda_practice PROPERTY CXX_STANDARD 20)
@@ -24,7 +23,6 @@ add_library(Toolbox STATIC
   shape.cu
   )
 
-set_target_properties(test PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
 target_link_libraries(${PROJECT_NAME} Toolbox)
 set_target_properties(Toolbox PROPERTIES CUDA_SEPARABLE_COMPILATION ON)

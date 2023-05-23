@@ -75,82 +75,40 @@ __device__ bool get_reflected_vector(vec3double &direction, vec3double &normal, 
     return dot(reflected, normal) > 0;
 }
 
-enum
-{
-    STATE_DEFAULT,
-    STATE_RIGID,
-    STATE_REFLECTION,
-    STATE_REFRACTION,
-    STATE_TERMINATE
-};
-
 __device__ vec3double get_color(vec3double &origin, vec3double &direction, shape *shapes, size_t shapes_size, curandState &rand_state)
 {
-    // since recursive does not worked on cuda, I have to build a dp
-    vec3double color[RAY_TRACING_DEPTH+1];
-    vec3double P [RAY_TRACING_DEPTH+1]; // position
-    vec3double N [RAY_TRACING_DEPTH+1]; // normal
-    vec3double D [RAY_TRACING_DEPTH+1]; // direction
-    shape* target[RAY_TRACING_DEPTH+1];
-    vec3double rand_unit_sphere;
-    size_t states[RAY_TRACING_DEPTH+1];
-
-    D[0] = direction;
-    P[0] = origin;
-
-    if (!get_vectors_from_shapes(origin, direction, P[1], N[1], &target[1], shapes, shapes_size)) 
-        return get_default_color(direction);
-
-    for (int i = 0; i < RAY_TRACING_DEPTH; i++)
+    vec3double attenuation = vec3double(1);
+    vec3double res, normal, rand_vec;
+    shape* target;
+    // for (int depth = 0; depth < RAY_TRACING_DEPTH; depth++)
+    while (!near_zero(attenuation))
     {
-        color[i] = vec3double(0);
-        states[i] = STATE_DEFAULT;
-    }
+        if (!get_vectors_from_shapes(origin, direction, res, normal, &target, shapes, shapes_size))
+            return attenuation * get_default_color(direction);
+        attenuation *= target->color;
+        rand_vec = random_in_unit_sphere(rand_state);
 
-    size_t depth = 1;
-    while (true)
-    {
-        states[depth] += 1;
-        if (states[0] != STATE_DEFAULT) break;
-        switch (states[depth])
+        switch (target->material)
         {
-        case STATE_RIGID:
-            // get rigid direction
-            color[depth] = vec3double(1);
-            D[depth] = N[depth];
-            rand_unit_sphere = random_in_unit_sphere(rand_state);
-            if (!near_zero(rand_unit_sphere))
-                D[depth] += dot(rand_unit_sphere, N[depth]) > 0 ? random_in_unit_sphere(rand_state) :  - random_in_unit_sphere(rand_state);
-            
-            // shoot the array and get the shape, shape color, hit position, and the normal vector from the position
-            if (!get_vectors_from_shapes(P[depth], D[depth], P[depth+1], N[depth+1], &target[depth+1], shapes, shapes_size))
-                color[depth] = get_default_color(D[depth]);
-            else if (depth < RAY_TRACING_DEPTH)
-                depth += 1;
+        case SHAPE_MATERIAL_LAMBERTIAN:
+            origin = res;
+            direction = normal;
+            if (!near_zero(rand_vec))
+                direction += dot(rand_vec, normal) > 0 ? rand_vec : -rand_vec;
             break;
-        case STATE_REFLECTION:
-            if (target[depth]->is_metal && get_reflected_vector(D[depth-1], N[depth], D[depth]))
-            {
-                if (!get_vectors_from_shapes(P[depth], D[depth], P[depth+1], N[depth+1], &target[depth+1], shapes, shapes_size))
-                    color[depth] = get_default_color(D[depth]);
-                else if (depth < RAY_TRACING_DEPTH)
-                    depth += 1;
-            }
+        case SHAPE_MATERIAL_METAL:
+            origin = res;
+            get_reflected_vector(direction, normal, res);
+            direction = res;
+            if (!near_zero(rand_vec))
+                direction += dot(rand_vec, normal) > 0 ? (target->fuzz * rand_vec) : -(target->fuzz * rand_vec);
             break;
-        case STATE_REFRACTION:
-        case STATE_TERMINATE:
         default:
-            color[depth-1] += color[depth] * target[depth]->color;
-            if (color[depth-1].r > 1) color[depth-1].r = 1.0;
-            if (color[depth-1].g > 1) color[depth-1].g = 1.0;
-            if (color[depth-1].b > 1) color[depth-1].b = 1.0;
-            states[depth] = STATE_DEFAULT;
-            depth -= 1;
-            break;
+            return vec3double(0);
         }
-    }
-    return color[0];
 
+    }
+    return vec3double(0);
 }
 
 __global__ void render(vec3double* pixels, int row, camera** d_camera, shape* shapes, size_t shapes_size)

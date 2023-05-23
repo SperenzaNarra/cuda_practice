@@ -59,8 +59,8 @@ int main()
     std::vector<shape> h_shapes;
     h_shapes.push_back(new_sphere(vec3double(0, -100.5, -1), 100.0, vec3double(0.8, 0.8, 0)));
     h_shapes.push_back(new_sphere(vec3double(0, 0, -1), 0.5, vec3double(0.7, 0.3, 0.3)));
-    h_shapes.push_back(new_sphere(vec3double(1, 0, -1), 0.5, vec3double(0.8, 0.6, 0.2), true));
-    h_shapes.push_back(new_sphere(vec3double(-1, 0, -1), 0.5, vec3double(0.8, 0.8, 0.8), true));
+    h_shapes.push_back(new_sphere(vec3double(1, 0, -1), 0.5, vec3double(0.8, 0.6, 0.2)).set_as_metal(1.0));
+    h_shapes.push_back(new_sphere(vec3double(-1, 0, -1), 0.5, vec3double(0.8, 0.8, 0.8)).set_as_metal(0.3));
 
     shape* d_shapes;
     checkCudaErrors(cudaMallocManaged((void**)&d_shapes, sizeof(shape) * h_shapes.size()));

@@ -9,11 +9,11 @@
 
 #define checkCudaErrors(val) check_cuda( (val), #val, __FILE__, __LINE__ )
 
-constexpr int IMAGE_WIDTH  = 2048;
-constexpr int IMAGE_HEIGHT = 1080;
+constexpr int IMAGE_WIDTH  = 1080;
+constexpr int IMAGE_HEIGHT = 720;
 constexpr int BLOCK_SIZE = 512;
-constexpr int SAMPLE_NUM = 100;
-constexpr int RAY_TRACING_DEPTH = 10;
+constexpr int SAMPLE_NUM = 1000;
+constexpr int RAY_TRACING_DEPTH = 5;
 
 constexpr double RAY_T_MIN = 0.0001;
 constexpr double RAY_T_MAX = 1.0e30;

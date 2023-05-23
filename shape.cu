@@ -1,16 +1,27 @@
 #include "shape.cuh"
 
-shape new_sphere(vec3double center, double radius, vec3double color, bool is_metal)
+shape new_sphere(vec3double center, double radius, vec3double color)
 {
     return (shape)
     {
         .type = SHAPE_TYPE_SPHERE,
-        .is_metal = is_metal,
         .color = color,
         .center = center,
         .radius = radius,
     };
 }
+
+shape& shape::set_as_metal(double fuzz)
+{
+    material = SHAPE_MATERIAL_METAL;
+    if (fuzz < 0) 
+        this->fuzz = 0.0;
+    else
+        this->fuzz = fuzz < 1.0 ? fuzz : 1.0;
+
+    return *this;
+}
+
 __device__ double get_dist_from_sphere(
     shape sphere, 
     vec3double &origin, 
