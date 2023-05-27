@@ -25,16 +25,16 @@ __global__ void render_free(camera** d_camera)
 
 int main()
 {
-    dim3 dimBlock(BLOCK_SIZE);
-    dim3 dimGrid(IMAGE_WIDTH/BLOCK_SIZE+1);
+    dim3 dimBlock(BLOCK_SIZE, BLOCK_SIZE);
+    dim3 dimGrid(IMAGE_WIDTH/BLOCK_SIZE+1, IMAGE_HEIGHT/BLOCK_SIZE+1);
 
     // buffer
-    int pixel_size = sizeof(vec3double) * IMAGE_WIDTH;
-    vec3double  h_pixels[IMAGE_WIDTH];
+    int pixel_size = sizeof(vec3double) * IMAGE_WIDTH * IMAGE_HEIGHT;
+    vec3double  *h_pixels = (vec3double*)malloc(pixel_size);
     vec3double *d_pixels;
     checkCudaErrors(cudaMallocManaged((void**)&d_pixels, pixel_size));
 
-    // camera
+    // cameras
     camera** d_camera;
     checkCudaErrors(cudaMallocManaged((void**)&d_camera, sizeof(camera*)));
 
@@ -43,10 +43,11 @@ int main()
     // h_spheres.push_back(sphere(vec3double(0, -100.5, -1), 100, vec3double(0.5)));
     // h_spheres.push_back(sphere(vec3double(0, 0, -1), 0.5, vec3double(0.5)));
 
-    h_spheres.push_back(sphere(vec3double(0, -100.5, -1), 100, vec3double(0.8, 0.8, 0)));
-    h_spheres.push_back(sphere(vec3double(0, 0, -1), 0.5, vec3double(0.7, 0.3, 0.3)));
-    h_spheres.push_back(sphere(vec3double(-1, 0, -1), 0.5, vec3double(0.8), MATERIAL_METAL));
-    h_spheres.push_back(sphere(vec3double(1, 0, -1), 0.5, vec3double(0.8, 0.6, 0.2), MATERIAL_METAL));
+    h_spheres.push_back(sphere(vec3double(0, -100.5, -1),   100, vec3double(0.8, 0.8, 0)));
+    h_spheres.push_back(sphere(vec3double(0, 0, -1),        0.5, vec3double(0.7, 0.3, 0.3)));
+    h_spheres.push_back(sphere(vec3double(-1, 0, -1),       0.5, vec3double(0.8)).as_dielectric(1.5));
+    // h_spheres.push_back(sphere(vec3double(-1, 0, -1),       0.5, vec3double(0.8)).as_metal(0.3));
+    h_spheres.push_back(sphere(vec3double(1, 0, -1),        0.5, vec3double(0.8, 0.6, 0.2)).as_metal(1.0));
 
     sphere* d_spheres;
     if (h_spheres.size())
@@ -59,19 +60,14 @@ int main()
     render_init<<<1, 1>>>(d_camera);
 
     // core
-    std::cout << "P3\n" << IMAGE_WIDTH << ' ' << IMAGE_HEIGHT << "\n255\n";
-    for (int row = IMAGE_HEIGHT - 1; row >= 0; row--)
-    {
-        std::cerr << "\rScanlines remaining: " << row << ' ' << std::flush;
-        render<<<dimGrid, dimBlock>>>(d_pixels, row, d_camera, d_spheres, h_spheres.size());
+    std::cout << "P3\n" << IMAGE_WIDTH << " " << IMAGE_HEIGHT << "\n255\n";
+    render<<<dimGrid, dimBlock>>>(d_pixels, d_camera, d_spheres, h_spheres.size());
 
-        checkCudaErrors(cudaGetLastError());
-        checkCudaErrors(cudaDeviceSynchronize());
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
 
-        checkCudaErrors(cudaMemcpy(h_pixels, d_pixels, pixel_size, cudaMemcpyDeviceToHost));
-        write_pixels(std::cout, h_pixels);
-    }
-    std::cerr << "\nDone.\n";
+    checkCudaErrors(cudaMemcpy(h_pixels, d_pixels, pixel_size, cudaMemcpyDeviceToHost));
+    write_pixels(std::cout, h_pixels);
 
     render_free<<<1, 1>>>(d_camera);
     checkCudaErrors(cudaFree(d_pixels));

@@ -3,7 +3,9 @@
 __device__ camera::camera(double viewport_height, double focal_length)
 {
     double aspect_ratio = (double) IMAGE_WIDTH / IMAGE_HEIGHT;
+    viewport_height = 2.0;
     double viewport_width = aspect_ratio * viewport_height;
+    focal_length = 1.0;
 
     origin = vec3double(0);
     horizontal = vec3double(viewport_width, 0, 0);

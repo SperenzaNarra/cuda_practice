@@ -7,13 +7,19 @@
 
 #define IMAGE_WIDTH  1080
 #define IMAGE_HEIGHT 720
-#define SAMPLES_PER_PIXEL 100
+#define SAMPLES_PER_PIXEL 1000
 #define DEPTH 50
 #define RAY_T_MIN 0.0001
 #define RAY_T_MAX 1.0e30
 
 // for cuda
-#define BLOCK_SIZE   512
+#define BLOCK_SIZE   8
+
+template <class T>
+__device__ inline T square(T x) {
+    return x * x;
+}
+
 
 struct ray
 {
@@ -47,15 +53,21 @@ class sphere
 public:
     vec3double color;
     int type;
+    union {
+        double fuzz;
+        double ir; // Index of Refraction
+    };
 private:
     vec3double center;
     double radius;
 public:
-    sphere(const vec3double &center, double radius, const vec3double &color, int type = MATERIAL_LAMBERTIAN);
-    __device__ bool hit(ray &in_ray, ray &out_ray, double &t_max);
+    sphere(const vec3double &center, double radius, const vec3double &color);
+    sphere& as_metal(double fuzz);
+    sphere& as_dielectric(double ir);
+    __device__ bool hit(ray &in_ray, ray &out_ray, bool &into, double &t_max);
 };
 
 void write_pixels(std::ostream &out, vec3double *pixels);
-__global__ void render(vec3double *pixels, int row, camera** camera, sphere* spheres, int sphere_size);
+__global__ void render(vec3double *pixels, camera** camera, sphere* spheres, int sphere_size);
 
 #endif
