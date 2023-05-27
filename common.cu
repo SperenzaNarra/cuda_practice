@@ -48,8 +48,8 @@ __device__ vec3double get_color(ray &in_ray, sphere* spheres, int sphere_size, c
 {
     vec3double attenuation = vec3double(1);
     int depth = 0;
-    // while (true)
-    while (depth < 10)
+    while (true)
+    // while (depth < 10)
     {
         sphere* target_sphere = NULL;
         double t = RAY_T_MAX;
@@ -88,8 +88,7 @@ __device__ vec3double get_color(ray &in_ray, sphere* spheres, int sphere_size, c
             in_ray.direction += get_rand_hemisphere(in_ray.direction, rand_state) * target_sphere->fuzz;
             break;
         case MATERIAL_DIELECTRIC:{
-            double n_air = 1.0, n_glass = target_sphere->ir;
-            double n_ratio = into ? n_air / n_glass : n_glass / n_air;
+            double n_ratio = into ? 1.0 / target_sphere->ir : target_sphere->ir / 1.0;
             double d_dot_n = dot(in_ray.direction, normal.direction),
                    cos2t = 1 - square(n_ratio) * (1 - square(d_dot_n));
             if (cos2t < 0) {   // Total internal reflection
@@ -99,7 +98,7 @@ __device__ vec3double get_color(ray &in_ray, sphere* spheres, int sphere_size, c
 
             vec3double tdir = (in_ray.direction * n_ratio - normal.direction * (d_dot_n * n_ratio + sqrt(cos2t))).normalized();
 
-            double refl_norm = square(n_glass - n_air) / square(n_glass + n_air),
+            double refl_norm = square(target_sphere->ir - 1.0) / square(target_sphere->ir + 1.0),
                    c = 1 - (into ? -d_dot_n : -dot(tdir, normal.direction));
             double refl_fresnel = refl_norm + (1 - refl_norm) * c * c * c * c * c,
                    trans_fresnel = 1 - refl_fresnel,
@@ -141,7 +140,7 @@ __global__ void render(vec3double *pixels, camera** camera, sphere* spheres, int
     {
         double u = ((double) col + curand_uniform_double(&rand_state)) / (IMAGE_WIDTH - 1);
         double v = ((double) row + curand_uniform_double(&rand_state)) / (IMAGE_HEIGHT - 1);
-        ray in_ray = (*camera)->get_ray(u, v);
+        ray in_ray = (*camera)->get_ray(u, v, rand_state);
         pixels[index] += get_color(in_ray, spheres, sphere_size, rand_state);
     }
     pixels[index] /= SAMPLES_PER_PIXEL;

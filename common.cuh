@@ -5,15 +5,16 @@
 #include <curand_kernel.h>
 #include "vec3double.cuh"
 
-#define IMAGE_WIDTH  1080
-#define IMAGE_HEIGHT 720
-#define SAMPLES_PER_PIXEL 1000
-#define DEPTH 50
+#define IMAGE_WIDTH  3840
+#define IMAGE_HEIGHT 2160
+// #define IMAGE_WIDTH  1080
+// #define IMAGE_HEIGHT 720
+#define SAMPLES_PER_PIXEL 4000
 #define RAY_T_MIN 0.0001
 #define RAY_T_MAX 1.0e30
 
 // for cuda
-#define BLOCK_SIZE   8
+#define BLOCK_SIZE   16
 
 template <class T>
 __device__ inline T square(T x) {
@@ -36,9 +37,13 @@ class camera
 {
 private:
     vec3double origin, horizontal, vertical, lower_left_corner;
+    vec3double u, v, w;
+    double lens_radius;
 public:
-    __device__ camera(double viewport_height, double focal_length);
-    __device__ ray get_ray(double u, double v);
+    // __device__ camera(double viewport_height, double focal_length);
+    __device__ camera(vec3double lookfrom, vec3double lookat, vec3double vup, double vfov, double aspect_ratio, double aperture, double focus_dist);
+    // __device__ ray get_ray(double u, double v);
+    __device__ ray get_ray(double u, double v, curandState &rand_state);
 };
 
 enum
