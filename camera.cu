@@ -1,11 +1,9 @@
-#include "camera.cuh"
+#include "common.cuh"
 
-__device__ camera::camera(double vfov, double aspect_ratio)
+__device__ camera::camera(double viewport_height, double focal_length)
 {
-    double theta = vfov * M_PI / 180.0;
-    double viewport_height = 2.0 * tan(theta / 2.0);
-    double viewport_width = viewport_height * aspect_ratio;
-    double focal_length = 1.0;
+    double aspect_ratio = (double) IMAGE_WIDTH / IMAGE_HEIGHT;
+    double viewport_width = aspect_ratio * viewport_height;
 
     origin = vec3double(0);
     horizontal = vec3double(viewport_width, 0, 0);
@@ -13,10 +11,7 @@ __device__ camera::camera(double vfov, double aspect_ratio)
     lower_left_corner = origin - horizontal / 2 - vertical / 2 - vec3double(0, 0, focal_length);
 }
 
-__device__ camera::~camera(){}
-
-__device__ void camera::get_ray(double u, double v, vec3double &origin, vec3double &direction)
+__device__ ray camera::get_ray(double u, double v)
 {
-    origin = this->origin;
-    direction = lower_left_corner + u * horizontal + v * vertical - this->origin;
+    return ray(origin, (lower_left_corner + u * horizontal + v * vertical - origin).normalized());
 }

@@ -9,7 +9,7 @@ struct vec3double
 
     __host__ __device__ double length();
     __host__ __device__ double length2();
-    __host__ __device__ vec3double normal();
+    __host__ __device__ vec3double normalized();
 
     __host__ __device__ vec3double();
     __host__ __device__ vec3double(const vec3double &vec);
