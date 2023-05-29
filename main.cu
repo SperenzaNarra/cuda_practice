@@ -1,5 +1,6 @@
 #include "common.cuh"
 #include <vector>
+#include <fstream>
 
 #define checkCudaErrors(val) check_cuda( (val), #val, __FILE__, __LINE__ )
 void check_cuda(cudaError_t result, char const *const func, const char *const file, int const line) 
@@ -13,13 +14,14 @@ void check_cuda(cudaError_t result, char const *const func, const char *const fi
     }
 }
 
-__global__ void render_init(camera** d_camera)
+__global__ void render_init(camera** d_camera, int *d_tasks_done)
 {
     // *d_camera = new camera(2.0, 1.0);
     vec3double  lookfrom(13, 2, 3), lookat(0, 0, 0), vup(0, 1, 0);
     double dist_to_focus = 10.0;
     double aperture = 0.1;
     *d_camera = new camera(lookfrom, lookat, vup, 20, (double)IMAGE_WIDTH/IMAGE_HEIGHT, aperture, dist_to_focus);
+    *d_tasks_done = 0;
 }
 
 __global__ void render_free(camera** d_camera)
@@ -51,6 +53,9 @@ inline vec3double random_vector(double min, double max)
 
 int main()
 {
+    std::ofstream outfile;
+    outfile.open("result.ppm");
+
     dim3 dimBlock(BLOCK_SIZE, BLOCK_SIZE);
     dim3 dimGrid(IMAGE_WIDTH/BLOCK_SIZE+1, IMAGE_HEIGHT/BLOCK_SIZE+1);
 
@@ -63,6 +68,10 @@ int main()
     // cameras
     camera** d_camera;
     checkCudaErrors(cudaMallocManaged((void**)&d_camera, sizeof(camera*)));
+
+    // task counter
+    int* d_tasks_done;
+    checkCudaErrors(cudaMallocManaged((void**)&d_tasks_done, sizeof(int)));
 
     // spheres
     std::vector<sphere> h_spheres;
@@ -94,21 +103,31 @@ int main()
     }
 
     // init
-    render_init<<<1, 1>>>(d_camera);
+    render_init<<<1, 1>>>(d_camera, d_tasks_done);
 
     // core
-    std::cout << "P3\n" << IMAGE_WIDTH << " " << IMAGE_HEIGHT << "\n255\n";
-    render<<<dimGrid, dimBlock>>>(d_pixels, d_camera, d_spheres, h_spheres.size());
+    std::cout << "\r0.000000%";
+
+    outfile << "P3\n" << IMAGE_WIDTH << " " << IMAGE_HEIGHT << "\n255\n";
+    render<<<dimGrid, dimBlock>>>(d_pixels, d_camera, d_spheres, h_spheres.size(), d_tasks_done);
+
 
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
 
     checkCudaErrors(cudaMemcpy(h_pixels, d_pixels, pixel_size, cudaMemcpyDeviceToHost));
-    write_pixels(std::cout, h_pixels);
 
+    std::cout << "\r100.000000%";
+    
+    write_pixels(outfile, h_pixels);
+
+    std::cout << "\ndone\n";
+
+    outfile.close();
     render_free<<<1, 1>>>(d_camera);
     checkCudaErrors(cudaFree(d_pixels));
     checkCudaErrors(cudaFree(d_camera));
+    checkCudaErrors(cudaFree(d_tasks_done));
     if (h_spheres.size())
         checkCudaErrors(cudaFree(d_spheres));
 }

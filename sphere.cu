@@ -22,8 +22,11 @@ sphere& sphere::as_dielectric(double ir)
 __device__ bool sphere::hit(ray &in_ray, ray &normal, bool &into, double &t_max)
 {
     vec3double oc = in_ray.origin - center;
+    // double a        = in_ray.direction.length2();
     double half_b   = dot(oc, in_ray.direction);
     double c        = oc.length2() - radius * radius;
+
+    // b * b - 4 * a * c
     double discriminant = half_b*half_b - c;
 
     if (discriminant < 0)

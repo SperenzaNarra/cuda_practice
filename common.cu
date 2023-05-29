@@ -36,14 +36,6 @@ __device__ vec3double get_rand_hemisphere(vec3double &normal, curandState &rand_
     return d;
 }
 
-__device__ vec3double refract(vec3double &in_direction, vec3double &normal, double etai_over_etat)
-{
-    double cos_theta = min(dot(-in_direction, normal), 1.0);
-    vec3double out_para = etai_over_etat * (in_direction + cos_theta * normal);
-    vec3double out_perp = -sqrt(abs(1.0 - out_para.length2())) * normal;
-    return out_para + out_perp;
-}
-
 __device__ vec3double get_color(ray &in_ray, sphere* spheres, int sphere_size, curandState &rand_state)
 {
     vec3double attenuation = vec3double(1);
@@ -88,7 +80,7 @@ __device__ vec3double get_color(ray &in_ray, sphere* spheres, int sphere_size, c
             in_ray.direction += get_rand_hemisphere(in_ray.direction, rand_state) * target_sphere->fuzz;
             break;
         case MATERIAL_DIELECTRIC:{
-            double n_ratio = into ? 1.0 / target_sphere->ir : target_sphere->ir / 1.0;
+            double n_ratio = into ? 1.0 / target_sphere->ir : target_sphere->ir;
             double d_dot_n = dot(in_ray.direction, normal.direction),
                    cos2t = 1 - square(n_ratio) * (1 - square(d_dot_n));
             if (cos2t < 0) {   // Total internal reflection
@@ -96,7 +88,7 @@ __device__ vec3double get_color(ray &in_ray, sphere* spheres, int sphere_size, c
                 break;
             }
 
-            vec3double tdir = (in_ray.direction * n_ratio - normal.direction * (d_dot_n * n_ratio + sqrt(cos2t))).normalized();
+            vec3double tdir = (in_ray.direction * n_ratio - normal.direction * (d_dot_n * n_ratio + sqrt(cos2t)));
 
             double refl_norm = square(target_sphere->ir - 1.0) / square(target_sphere->ir + 1.0),
                    c = 1 - (into ? -d_dot_n : -dot(tdir, normal.direction));
@@ -124,7 +116,7 @@ __device__ vec3double get_color(ray &in_ray, sphere* spheres, int sphere_size, c
     return vec3double(0);
 }
 
-__global__ void render(vec3double *pixels, camera** camera, sphere* spheres, int sphere_size)
+__global__ void render(vec3double *pixels, camera** camera, sphere* spheres, int sphere_size, int* tasks_done)
 {
     int col = threadIdx.x + blockIdx.x * blockDim.x;
     int row = threadIdx.y + blockIdx.y * blockDim.y;
@@ -144,4 +136,7 @@ __global__ void render(vec3double *pixels, camera** camera, sphere* spheres, int
         pixels[index] += get_color(in_ray, spheres, sphere_size, rand_state);
     }
     pixels[index] /= SAMPLES_PER_PIXEL;
+    atomicAdd(tasks_done, 1);
+    if (*tasks_done%(BLOCK_SIZE*BLOCK_SIZE) == 0)
+        printf("\r%.6f%%", (double)*tasks_done/(IMAGE_WIDTH * IMAGE_HEIGHT) * 100);
 }

@@ -9,12 +9,13 @@
 #define IMAGE_HEIGHT 2160
 // #define IMAGE_WIDTH  1080
 // #define IMAGE_HEIGHT 720
-#define SAMPLES_PER_PIXEL 4000
+#define SAMPLES_PER_PIXEL 50
 #define RAY_T_MIN 0.0001
 #define RAY_T_MAX 1.0e30
 
 // for cuda
-#define BLOCK_SIZE   16
+#define BLOCK_SIZE 32
+
 
 template <class T>
 __device__ inline T square(T x) {
@@ -73,6 +74,6 @@ public:
 };
 
 void write_pixels(std::ostream &out, vec3double *pixels);
-__global__ void render(vec3double *pixels, camera** camera, sphere* spheres, int sphere_size);
+__global__ void render(vec3double *pixels, camera** camera, sphere* spheres, int sphere_size, int* tasks_done);
 
 #endif
